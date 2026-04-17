@@ -1,0 +1,16 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@cross/image@~0.4.3": "0.4.3"
+  },
+  "jsr": {
+    "@cross/image@0.4.3": {
+      "integrity": "35de7afd2b3ea800dad368ff364e735f66b2719dbd053084fa42b0d233e3492c"
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@cross/image@~0.4.3"
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "@cross/image": "jsr:@cross/image@^0.4.3"
+  }
+}

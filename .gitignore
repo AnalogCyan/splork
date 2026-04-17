@@ -1,4 +1,5 @@
 rp2040src/build
+rp2040src/.cache
 drawing.h
 drawing_v.h
 drawing_h.h

@@ -1,4 +1,4 @@
-/* 
+/*
  * The MIT License (MIT)
  *
  * Copyright (c) 2022 ave oezkal (ave.zone)
@@ -102,8 +102,7 @@ void drawing_task(void)
     uint8_t instruction = drawing_instructions[drawing_instructions_progress];
 
     buttons |= ((instruction & 1) == 1) ? SWITCH_MASK_A : 0;
-    buttons |= ((instruction & 2) == 2) ? SWITCH_MASK_B : 0;
-    buttons |= ((instruction & 64) == 64) ? (SWITCH_MASK_L | SWITCH_MASK_L3) : 0;
+    buttons |= ((instruction & 2) == 2) ? SWITCH_MASK_Y : 0;
 
     if ((instruction & 20) == 20) {
         hat = SWITCH_HAT_UPRIGHT;
