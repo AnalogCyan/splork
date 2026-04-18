@@ -1,5 +1,6 @@
 {
   "imports": {
-    "@cross/image": "jsr:@cross/image@^0.4.3"
+    "@cross/image": "jsr:@cross/image@^0.4.3",
+    "image-q": "npm:image-q@^4.0.0"
   }
 }

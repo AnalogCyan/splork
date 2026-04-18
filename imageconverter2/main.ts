@@ -5,146 +5,48 @@
 // - pen tool with 1px brush selected
 // - cursor hovering over top left pixel
 import { Image } from "@cross/image";
+import { applyPalette, utils } from "image-q";
+import { BUTTONS, delay } from "./buttons.ts";
+import { COLORS, DEFAULT_COLOR, getColorIdx, selectNewColor } from "./colors.ts";
 
 const data = await Deno.readFile(Deno.args[0]);
-const image = await Image.decode(data);
-
-const BUTTONS = {
-  NOOP: 0,
-  A: 1,
-  Y: 2,
-  RIGHT: 4,
-  LEFT: 8,
-  UP: 16,
-  DOWN: 32,
-  WAIT: 128
-} as const;
-
-// these colors are a bit off because my capture card is shit but w/e I don't care
-type Color = [number, number, number];
-const COLORS_PER_ROW = 12;
-const COLORS: Color[] = [
-  [255, 255, 255],
-  [238, 240, 246],
-  [239, 241, 247],
-  [240, 248, 253],
-  [239, 251, 244],
-  [239, 244, 238],
-  [244, 250, 240],
-  [253, 252, 239],
-  [252, 243, 238],
-  [249, 240, 238],
-  [251, 237, 220],
-  [249, 1, 1],
-
-  [235, 235, 235],
-  [207, 200, 231],
-  [199, 204, 228],
-  [199, 231, 251],
-  [200, 241, 216],
-  [200, 218, 200],
-  [216, 238, 199],
-  [249, 249, 199],
-  [252, 214, 200],
-  [237, 201, 200],
-  [227, 207, 178],
-  [254, 254, 4],
-
-  [213, 213, 211],
-  [166, 146, 212],
-  [145, 159, 210],
-  [147, 214, 251],
-  [146, 229, 185],
-  [146, 189, 147],
-  [186, 224, 147],
-  [248, 243, 147],
-  [248, 180, 146],
-  [223, 150, 144],
-  [201, 169, 119],
-  [9, 253, 3],
-
-  [187, 187, 187],
-  [98, 1, 189],
-  [1, 74, 185],
-  [14, 193, 250],
-  [5, 217, 143],
-  [3, 148, 22],
-  [145, 210, 24],
-  [247, 239, 4],
-  [243, 132, 3],
-  [208, 39, 0],
-  [142, 98, 15],
-  [19, 254, 252],
-
-  [153, 156, 153],
-  [84, 1, 163],
-  [0, 64, 160],
-  [8, 165, 213],
-  [5, 186, 122],
-  [2, 127, 14],
-  [124, 180, 14],
-  [212, 205, 2],
-  [209, 112, 2],
-  [179, 35, 0],
-  [116, 65, 0],
-  [0, 0, 248],
-
-  [114, 114, 114],
-  [64, 0, 129],
-  [0, 49, 127],
-  [7, 129, 167],
-  [5, 147, 96],
-  [2, 101, 12],
-  [98, 142, 14],
-  [167, 162, 1],
-  [164, 88, 1],
-  [140, 22, 0],
-  [91, 56, 14],
-  [133, 1, 249],
-
-  [0, 0, 0],
-  [31, 0, 73],
-  [0, 22, 72],
-  [2, 73, 95],
-  [1, 84, 51],
-  [0, 55, 0],
-  [51, 81, 1],
-  [95, 92, 2],
-  [94, 45, 0],
-  [79, 12, 0],
-  [51, 32, 12],
-  [250, 3, 191]
-];
-const NUM_ROWS = Math.floor(COLORS.length / COLORS_PER_ROW);
-
-// this formula sucks lmao
-function getNearestColor(desired: [number, number, number]): number {
-  let bestIdx = 0;
-  let bestDistance = Infinity;
-
-  for (let i = 0; i < COLORS.length; i++) {
-    const candidate = COLORS[i];
-
-    const distance = Math.pow(desired[0] - candidate[0], 2)
-      + Math.pow(desired[1] - candidate[1], 2)
-      + Math.pow(desired[2] - candidate[2], 2);
-
-    if (distance < bestDistance) {
-      bestIdx = i;
-      bestDistance = distance;
-    }
-  }
-
-  return bestIdx;
+let image = await Image.decode(data);
+if (Deno.args.length >= 3) {
+  const width = parseInt(Deno.args[1]);
+  const height = parseInt(Deno.args[2]);
+  image = image.resize({ width, height });
 }
 
-let currentColor = 72; // black
+{
+  const container = utils.PointContainer.fromUint8Array(
+    image.data,
+    image.width,
+    image.height
+  );
+  const palette = new utils.Palette();
+  for (const color of COLORS) palette.add(utils.Point.createByRGBA(color[0], color[1], color[2], 255));
+  const result = await applyPalette(container, palette, {
+    // TODO
+  });
+  const points = result.getPointArray();
+  for (let i = 0; i < points.length; i++) {
+    const x = i % image.width;
+    const y = Math.floor(i / image.height);
+
+    const orig = image.getPixel(x, y);
+    if (orig && orig.a < 127) continue;
+
+    const point = points[i];
+    image.setPixel(x, y, point.r, point.g, point.b, 255);
+  }
+}
 
 const insns: number[] = [];
-
-function delay(count: number) {
-  for (let i = 0; i < count; i++) insns.push(BUTTONS.NOOP);
-}
+let currentColor = DEFAULT_COLOR;
+let down = true;
+let right = true;
+let x = 0;
+let y = 0;
 
 // initial setup
 insns.push(
@@ -156,103 +58,188 @@ insns.push(
   BUTTONS.A,
   BUTTONS.WAIT
 );
-delay(100);
+delay(insns, 100);
 insns.push(BUTTONS.A); // attempt confirm controller just in case bcuz jank
-delay(100);
+delay(insns, 100);
 
-function selectNewColor(newColor: number) {
-  const currentRow = Math.floor(currentColor / COLORS_PER_ROW);
-  const currentColumn = currentColor % COLORS_PER_ROW;
-
-  const newRow = Math.floor(newColor / COLORS_PER_ROW);
-  const newColumn = newColor % COLORS_PER_ROW;
-
-  // once to select the color picker, one to open the full colors
-  insns.push(BUTTONS.Y);
-  delay(10);
-  insns.push(BUTTONS.Y);
-  delay(10);
-
-  if (newRow !== currentRow) {
-    const downCase = newRow > currentRow
-      ? (newRow - currentRow)
-      : ((NUM_ROWS - currentRow) + newRow);
-    const upCase = newRow > currentRow
-      ? (currentRow + (NUM_ROWS - newRow))
-      : (currentRow - newRow);
-
-    const [count, button] = downCase < upCase
-      ? [downCase, BUTTONS.DOWN]
-      : [upCase, BUTTONS.UP];
-    for (let i = 0; i < count; i++) {
-      insns.push(button);
-      delay(1);
-    }
+const colors: number[] = [];
+let currentColorIdx = 0;
+for (let y = 0; y < image.height; y++) {
+  for (let x = 0; x < image.width; x++) {
+    const pixel = image.getPixel(x, y)!;
+    if (pixel.a < 127) continue;
+    const color = getColorIdx(pixel.r, pixel.g, pixel.b);
+    if (!colors.includes(color)) colors.push(color);
   }
-  // delay(5);
+}
 
-  if (newColumn !== currentColumn) {
-    const rightCase = newColumn > currentColumn
-      ? (newColumn - currentColumn)
-      : ((COLORS_PER_ROW - currentColumn) + newColumn);
-    const leftCase = newColumn > currentColumn
-      ? (currentColumn + (COLORS_PER_ROW - newColumn))
-      : (currentColumn - newColumn);
+// FIXME
+await Deno.writeFile(
+  "images/result.png",
+  await image.encode("png")
+);
 
-    const [count, button] = rightCase < leftCase
-      ? [rightCase, BUTTONS.RIGHT]
-      : [leftCase, BUTTONS.LEFT];
-    for (let i = 0; i < count; i++) {
-      insns.push(button);
-      delay(1);
-    }
-  }
+function isDrawingPixel(x: number, y: number, colorOverride?: number) {
+  const pixel = image.getPixel(x, y);
+  if (!pixel) return false;
+  if (pixel.a < 127) return false;
 
-  delay(5);
-  insns.push(BUTTONS.A);
-  delay(10);
+  const color = getColorIdx(pixel.r, pixel.g, pixel.b);
+  if (color !== (colorOverride ?? currentColor)) return false;
+
+  return true;
 }
 
 function handlePixel(x: number, y: number) {
-  const pixel = image.getPixel(x, y)!;
-  if (pixel.a < 127) return;
-
-  const newColor = getNearestColor([pixel.r, pixel.g, pixel.b]);
-  if (newColor !== currentColor) {
-    selectNewColor(newColor);
-    currentColor = newColor;
+  if (isDrawingPixel(x, y)) {
+    insns.push(BUTTONS.A);
+  } else {
+    insns.push(BUTTONS.NOOP);
   }
-
-  insns.push(BUTTONS.A);
-  // delay(5);
 }
 
-let forward = true;
-for (let y = 0; y < image.height; y++) {
-  if (forward) {
-    for (let x = 0; x < image.width; x++) {
+function sectionIsEmpty(y: number, startX: number, endX: number, color?: number) {
+  for (let x = startX; x <= endX; x++) {
+    if (isDrawingPixel(x, y, color)) return false;
+  }
+
+  return true;
+}
+
+function canSkipRow() {
+  const startX = right ? x : 0;
+  const endX = right ? (image.width - 1) : x;
+  if (!sectionIsEmpty(y, startX, endX)) return false;
+
+  const endY = down ? (image.height - 1) : 0;
+  if (y === endY) {
+    if (currentColorIdx !== (colors.length - 1)) {
+      const nextColor = colors[currentColorIdx + 1];
+      if (!sectionIsEmpty(y, startX, endX, nextColor)) return false;
+    }
+  } else {
+    const nextY = down ? (y + 1) : (y - 1);
+    if (!sectionIsEmpty(nextY, startX, endX)) return false;
+  }
+
+  return true;
+}
+
+function canSkipLayer(color?: number) {
+  if (down) {
+    for (let i = y; i < image.height; i++) {
+      if (!sectionIsEmpty(i, 0, image.width - 1, color)) return false;
+    }
+  } else {
+    for (let i = y; i >= 0; i--) {
+      if (!sectionIsEmpty(i, 0, image.width - 1, color)) return false;
+    }
+  }
+
+  return true;
+}
+
+function canSkipImage() {
+  if (!canSkipLayer()) return false;
+
+  if (currentColorIdx !== (colors.length - 1)) {
+    const nextColor = colors[currentColorIdx + 1];
+    if (!canSkipLayer(nextColor)) return false;
+  }
+
+  return true;
+}
+
+function handleRow() {
+  if (right) {
+    while (true) {
+      if (canSkipRow()) {
+        insns.push(BUTTONS.NOOP);
+        break;
+      }
       handlePixel(x, y);
+
       if (x !== (image.width - 1)) {
         insns.push(BUTTONS.RIGHT);
-        // delay(5);
+        x++;
+      } else {
+        break;
       }
     }
   } else {
-    for (let x = image.width - 1; x >= 0; x--) {
+    while (true) {
+      if (canSkipRow()) {
+        insns.push(BUTTONS.NOOP);
+        break;
+      }
       handlePixel(x, y);
+
       if (x !== 0) {
         insns.push(BUTTONS.LEFT);
-        // delay(5);
+        x--;
+      } else {
+        break;
       }
     }
   }
 
-  insns.push(BUTTONS.DOWN);
-  // delay(5);
-  forward = !forward;
+  right = !right;
 }
 
-console.log(insns.length);
+function handleImage() {
+  if (down) {
+    while (true) {
+      if (canSkipImage()) {
+        insns.push(BUTTONS.NOOP);
+        break;
+      }
+      handleRow();
+
+      if (y !== (image.height - 1)) {
+        insns.push(BUTTONS.DOWN);
+        y++;
+      } else {
+        break;
+      }
+    }
+  } else {
+    while (true) {
+      if (canSkipImage()) {
+        insns.push(BUTTONS.NOOP);
+        break;
+      }
+      handleRow();
+
+      if (y !== 0) {
+        insns.push(BUTTONS.UP);
+        y--;
+      } else {
+        break;
+      }
+    }
+  }
+
+  down = !down;
+}
+
+console.log(`${colors.length} colors`);
+
+for (currentColorIdx = 0; currentColorIdx < colors.length; currentColorIdx++) {
+  const newColor = colors[currentColorIdx];
+
+  selectNewColor(insns, currentColor, newColor);
+  currentColor = newColor;
+
+  handleImage();
+  delay(insns, 40);
+}
+
+const insnCount = insns.length;
+const pollingRate = 25 / 1000;
+const etaTotal = Math.round(insnCount * pollingRate);
+const etaMinutes = Math.floor(etaTotal / 60);
+const etaSeconds = etaTotal % 60;
+console.log(`Instructions: ${insnCount}, ETA: ${etaMinutes}:${etaSeconds}`);
 
 await Deno.writeTextFile(
   "./rp2040src/drawing.h",
