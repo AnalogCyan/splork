@@ -101,32 +101,37 @@ void drawing_task(void)
 
     uint8_t instruction = drawing_instructions[drawing_instructions_progress];
 
-    buttons |= ((instruction & 1) == 1) ? SWITCH_MASK_A : 0;
-    buttons |= ((instruction & 2) == 2) ? SWITCH_MASK_Y : 0;
+    if (instruction == 192) {
+        buttons = SWITCH_MASK_X;
+    } else {
+        buttons |= ((instruction & 1) == 1) ? SWITCH_MASK_A : 0;
+        buttons |= ((instruction & 2) == 2) ? SWITCH_MASK_Y : 0;
+        buttons |= ((instruction & 64) == 64) ? SWITCH_MASK_B : 0;
 
-    if ((instruction & 20) == 20) {
-        hat = SWITCH_HAT_UPRIGHT;
-    } else if ((instruction & 36) == 36) {
-        hat = SWITCH_HAT_DOWNRIGHT;
-    } else if ((instruction & 4) == 4) {
-        hat = SWITCH_HAT_RIGHT;
-    } else if ((instruction & 24) == 24) {
-        hat = SWITCH_HAT_UPLEFT;
-    } else if ((instruction & 40) == 40) {
-        hat = SWITCH_HAT_DOWNLEFT;
-    } else if ((instruction & 8) == 8) {
-        hat = SWITCH_HAT_LEFT;
-    } else if ((instruction & 16) == 16) {
-        hat = SWITCH_HAT_UP;
-    } else if ((instruction & 32) == 32) {
-        hat = SWITCH_HAT_DOWN;
+        if ((instruction & 20) == 20) {
+            hat = SWITCH_HAT_UPRIGHT;
+        } else if ((instruction & 36) == 36) {
+            hat = SWITCH_HAT_DOWNRIGHT;
+        } else if ((instruction & 4) == 4) {
+            hat = SWITCH_HAT_RIGHT;
+        } else if ((instruction & 24) == 24) {
+            hat = SWITCH_HAT_UPLEFT;
+        } else if ((instruction & 40) == 40) {
+            hat = SWITCH_HAT_DOWNLEFT;
+        } else if ((instruction & 8) == 8) {
+            hat = SWITCH_HAT_LEFT;
+        } else if ((instruction & 16) == 16) {
+            hat = SWITCH_HAT_UP;
+        } else if ((instruction & 32) == 32) {
+            hat = SWITCH_HAT_DOWN;
+        }
     }
 
     board_led_write(instruction & 1);
 
     send_hid_report(buttons, hat);
     drawing_instructions_progress++;
-    if (instruction & 128) {
+    if (instruction != 192 && (instruction & 128)) {
         sleep_ms(500);
     }
     if (drawing_instructions_progress == sizeof(drawing_instructions)) {
