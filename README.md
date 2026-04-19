@@ -97,7 +97,6 @@ That happens, unfortunately, and there isn't a great way to prevent it. The orig
 
 - diffgen support for Tomodachi
 - Web patcher for easy setup without building from source
-- Skip drawing the canvas background color
 - Faster drawing via combined A+direction instructions (needs testing)
 
 ## Licenses
