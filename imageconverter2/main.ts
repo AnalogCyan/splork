@@ -149,8 +149,8 @@ insns.push(BUTTONS.B);
 delay(insns, 60);
 
 // navigate from center to (0, 0) - exact distance, no overshoot
-const halfW = Math.ceil(image.width / 2) + 1;
-const halfH = Math.ceil(image.height / 2) + 1;
+const halfW = Math.ceil(image.width / 2);
+const halfH = Math.ceil(image.height / 2);
 const diagSteps = Math.min(halfW, halfH);
 moveCursor(BUTTONS.UP | BUTTONS.LEFT, diagSteps);
 if (halfW > diagSteps) moveCursor(BUTTONS.LEFT, halfW - diagSteps);
