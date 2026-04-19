@@ -1,49 +1,50 @@
-# splork
+# Splork
 
-tomodachi life: living the dream face paint drawer for pi pico (or any other RP2040 board)
+Tomodachi Life: Living the Dream art drawer/printer for Raspberry Pi Pico (or any other RP2040 board).
 
-fork of [NotNite/splork](https://github.com/NotNite/splork), originally built for splatoon 3. this version targets tomodachi life: living the dream's face paint editor, with full 84-color palette support and automatic brush/cursor setup.
+Fork of [NotNite/splork](https://github.com/NotNite/splork), which forked [aveao/splork](https://github.com/aveao/splork) (the original Splatoon 3 version) to add initial Tomodachi Life support. This fork fully converts the project for Tomodachi Life: Living the Dream, with an 84-color palette, automatic editor setup, and an optimized drawing algorithm.
 
-## setup
+## Setup
 
-### dependencies
+### Dependencies
 
-- [deno](https://deno.land) runtime
-- [pico SDK](https://github.com/raspberrypi/pico-sdk) + cmake + arm-none-eabi-gcc toolchain
-- a pi pico (or any RP2040 board)
+- [Deno](https://deno.land) runtime
+- [Pico SDK](https://github.com/raspberrypi/pico-sdk) + CMake + arm-none-eabi-gcc toolchain
+- A Raspberry Pi Pico (or any RP2040 board)
 
-on macOS:
+On macOS:
 ```bash
 brew install cmake
 brew install --cask gcc-arm-embedded
 git clone https://github.com/raspberrypi/pico-sdk.git ~/pico-sdk --recurse-submodules
 ```
 
-### preparing your image
+### Preparing Your Image
 
-any image works. the converter will resize and dither it to tomodachi's 84-color palette automatically. transparent pixels will be ignored.
+Any image works. The converter will resize and dither it to Tomodachi's 84-color palette automatically. Transparent pixels will be ignored.
 
-the face paint canvas is 256x256. you can specify a custom size, but 256x256 fills the full canvas.
+The paint canvas is 256x256. You can specify a custom size, but 256x256 fills the full canvas.
 
-### generating instructions
+### Generating Instructions
 
+From the repo root:
 ```bash
 deno run -A imageconverter2/main.ts <image path> [width] [height]
 ```
 
-examples:
+Examples:
 ```bash
 deno run -A imageconverter2/main.ts images/myimage.png 256 256
 deno run -A imageconverter2/main.ts images/myimage.png  # uses original image dimensions
 ```
 
-this outputs:
+This outputs:
 - `images/result.png` - preview of the dithered image
 - `rp2040src/drawing.h` - instruction data for the firmware
 
-the converter will print the number of colors used and an estimated draw time. a full 256x256 image with many colors can take upwards of 12 hours.
+The converter will print the number of colors used and an estimated draw time. A full 256x256 image with many colors can take upwards of 12 hours.
 
-### building the firmware
+### Building the Firmware
 
 ```bash
 cd rp2040src
@@ -54,58 +55,59 @@ cmake ..
 make
 ```
 
-on subsequent builds you only need `cd build`, the `export`, and `make`.
+On subsequent builds you only need `cd build`, the `export`, and `make`.
 
-### flashing
+### Flashing
 
-- while holding down `BOOTSEL` on your board, plug it into your computer.
-- copy `rp2040src/build/splork.uf2` to the newly mounted `RPI-RP2` drive.
+- While holding down `BOOTSEL` on your board, plug it into your computer.
+- Copy `rp2040src/build/splork.uf2` to the newly mounted `RPI-RP2` drive.
 
-### drawing
+### Drawing
 
-- open the face paint editor in tomodachi life.
-    - select pro/artist mode, pick a blank base.
-    - don't touch anything else, the firmware handles brush setup automatically.
-    - tip: if docked, disconnect all other controllers to ensure the "connect your controller" UI is visible.
-- connect your board with a USB cable to your switch, either while it's docked or with a USB C to A cable.
-    - draw sessions can take many hours. keep your switch docked.
-- press the `BOOTSEL` button on the board to start.
+- Make sure the advanced/pro editor is enabled in your game settings.
+- Open a new paint canvas in Tomodachi Life. Don't touch anything after opening it.
+    - The firmware will automatically set the brush size, select colors, and position the cursor.
+    - Tip: if docked, disconnect all other controllers to ensure the "connect your controller" UI is visible.
+- Connect your board with a USB cable to your Switch, either while it's docked or with a USB-C to USB-A cable.
+    - Draw sessions can take many hours. Keep your Switch docked.
+- Press the `BOOTSEL` button on the board to start.
 
-the firmware will:
-1. wait for the switch to recognize the controller
-2. dismiss the controller connection dialog
-3. set the brush to 1px
-4. navigate to the top-left corner
-5. draw the image color by color
+The firmware will:
+1. Wait for the Switch to recognize the controller
+2. Dismiss the controller connection dialog
+3. Set the brush to 1px
+4. Navigate to the top-left corner
+5. Draw the image color by color
 
-### my drawing wasn't perfect, some lines drifted!
+### My drawing wasn't perfect, some lines drifted!
 
-that happens, unfortunately, and there isn't a great way to prevent it. the original splork has a `diffgen` tool that can generate cleanup runs from a screenshot, but it hasn't been adapted for tomodachi yet.
+That happens, unfortunately, and there isn't a great way to prevent it. The original Splork has a `diffgen` tool that can generate cleanup runs from a screenshot, but it hasn't been adapted for Tomodachi yet.
 
-## changes from upstream
+## Changes from Upstream
 
-- image converter rewritten in deno/typescript (was python)
-- full 84-color palette support (was black and white only)
-- automatic dithering to palette via image-q
-- automatic brush setup (1px) and cursor positioning
-- firmware support for X and B buttons
-- drawing algorithm uses diagonal movement, row trimming, and color ordering optimizations
-- Y button for color picker navigation (was B in splatoon)
+- Image converter rewritten in Deno/TypeScript (was Python)
+- Full 84-color palette support (was black and white only)
+- Automatic dithering to palette via image-q
+- Automatic brush setup (1px) and cursor positioning
+- Firmware support for X and B buttons
+- Drawing algorithm uses diagonal movement, row trimming, and color ordering optimizations
+- Y button for color picker navigation (was B in Splatoon)
 
-## todos
+## TODOs
 
-- diffgen support for tomodachi
-- web patcher for easy setup without building from source
-- skip drawing the canvas background color
-- faster drawing via combined A+direction instructions (needs testing)
+- diffgen support for Tomodachi
+- Web patcher for easy setup without building from source
+- Skip drawing the canvas background color
+- Faster drawing via combined A+direction instructions (needs testing)
 
-## licenses
+## Licenses
 
-- All code is MIT. Parts are based on other MIT projects, see "credits" section below for more detail.
+- All code is MIT. Parts are based on other MIT projects, see "Credits" section below for more detail.
 - All sample images are licensed under a [Creative Commons Attribution 4.0 International License](http://creativecommons.org/licenses/by/4.0/), unless otherwise stated.
 
-## credits
+## Credits
 
-- original splork by [NotNite](https://github.com/NotNite/splork)
-- the rp2040 codebase is vaguely based on the official dev_hid_composite example project
-- the `SwitchDescriptors.h` file is from https://github.com/FeralAI/MPG (MIT)
+- Original Splork by [ave](https://github.com/aveao/splork)
+- Tomodachi Life fork by [NotNite](https://github.com/NotNite/splork)
+- The RP2040 codebase is vaguely based on the official dev_hid_composite example project
+- The `SwitchDescriptors.h` file is from https://github.com/FeralAI/MPG (MIT)
