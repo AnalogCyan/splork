@@ -5,6 +5,7 @@ include(pico_sdk_import.cmake)
 project(splork_project C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 pico_sdk_init()
 
 add_executable(splork)
@@ -22,4 +23,3 @@ pico_add_extra_outputs(splork)
 target_include_directories(splork PRIVATE ${CMAKE_CURRENT_LIST_DIR} )
 
 target_link_libraries(splork pico_stdlib tinyusb_device tinyusb_board)
-

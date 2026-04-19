@@ -1,0 +1,29 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@cross/image@~0.4.3": "0.4.3",
+    "npm:image-q@4": "4.0.0"
+  },
+  "jsr": {
+    "@cross/image@0.4.3": {
+      "integrity": "35de7afd2b3ea800dad368ff364e735f66b2719dbd053084fa42b0d233e3492c"
+    }
+  },
+  "npm": {
+    "@types/node@16.9.1": {
+      "integrity": "sha512-QpLcX9ZSsq3YYUUnD3nFDY8H7wctAhQj/TFKL8Ya8v5fMm3CFXxo8zStsLAl780ltoYoo1WvKUVGBQK+1ifr7g=="
+    },
+    "image-q@4.0.0": {
+      "integrity": "sha512-PfJGVgIfKQJuq3s0tTDOKtztksibuUEbJQIYT3by6wctQo+Rdlh7ef4evJ5NCdxY4CfMbvFkocEwbl4BF8RlJw==",
+      "dependencies": [
+        "@types/node"
+      ]
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@cross/image@~0.4.3",
+      "npm:image-q@4"
+    ]
+  }
+}
