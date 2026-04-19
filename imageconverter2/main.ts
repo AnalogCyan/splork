@@ -1,9 +1,3 @@
-// initial setup:
-// - pro mode enabled
-// - blank base selected
-// - current color is black
-// - pen tool with 1px brush selected
-// - cursor hovering over top left pixel
 import { Image } from "@cross/image";
 import { applyPalette, utils } from "image-q";
 import { BUTTONS, delay } from "./buttons.ts";
@@ -21,17 +15,15 @@ if (Deno.args.length >= 3) {
   const container = utils.PointContainer.fromUint8Array(
     image.data,
     image.width,
-    image.height
+    image.height,
   );
   const palette = new utils.Palette();
   for (const color of COLORS) palette.add(utils.Point.createByRGBA(color[0], color[1], color[2], 255));
-  const result = await applyPalette(container, palette, {
-    // TODO
-  });
+  const result = await applyPalette(container, palette, {});
   const points = result.getPointArray();
   for (let i = 0; i < points.length; i++) {
     const x = i % image.width;
-    const y = Math.floor(i / image.height);
+    const y = Math.floor(i / image.width);
 
     const orig = image.getPixel(x, y);
     if (orig && orig.a < 127) continue;
@@ -41,196 +33,181 @@ if (Deno.args.length >= 3) {
   }
 }
 
-const insns: number[] = [];
-let currentColor = DEFAULT_COLOR;
-let down = true;
-let right = true;
-let x = 0;
-let y = 0;
+await Deno.writeFile("images/result.png", await image.encode("png"));
 
-// initial setup
-insns.push(
-  // get the switch's attention
-  BUTTONS.UP,
-  BUTTONS.WAIT,
-  BUTTONS.A,
-  BUTTONS.WAIT,
-  BUTTONS.A,
-  BUTTONS.WAIT
-);
-delay(insns, 100);
-insns.push(BUTTONS.A); // attempt confirm controller just in case bcuz jank
-delay(insns, 100);
-
-const colors: number[] = [];
-let currentColorIdx = 0;
+// precompute color index grid
+const colorGrid: number[][] = [];
 for (let y = 0; y < image.height; y++) {
+  colorGrid[y] = [];
   for (let x = 0; x < image.width; x++) {
     const pixel = image.getPixel(x, y)!;
-    if (pixel.a < 127) continue;
-    const color = getColorIdx(pixel.r, pixel.g, pixel.b);
-    if (!colors.includes(color)) colors.push(color);
+    if (pixel.a < 127) {
+      colorGrid[y][x] = -1;
+    } else {
+      colorGrid[y][x] = getColorIdx(pixel.r, pixel.g, pixel.b);
+    }
   }
 }
 
-// FIXME
-await Deno.writeFile(
-  "images/result.png",
-  await image.encode("png")
-);
+// collect used colors, sort by pixel count (most common first)
+const colorCounts = new Map<number, number>();
+for (let y = 0; y < image.height; y++) {
+  for (let x = 0; x < image.width; x++) {
+    const c = colorGrid[y][x];
+    if (c === -1) continue;
+    colorCounts.set(c, (colorCounts.get(c) ?? 0) + 1);
+  }
+}
+const colors = [...colorCounts.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .map((e) => e[0]);
 
-function isDrawingPixel(x: number, y: number, colorOverride?: number) {
-  const pixel = image.getPixel(x, y);
-  if (!pixel) return false;
-  if (pixel.a < 127) return false;
-
-  const color = getColorIdx(pixel.r, pixel.g, pixel.b);
-  if (color !== (colorOverride ?? currentColor)) return false;
-
-  return true;
+interface RowInfo {
+  y: number;
+  firstX: number;
+  lastX: number;
 }
 
-function handlePixel(x: number, y: number) {
-  if (isDrawingPixel(x, y)) {
-    insns.push(BUTTONS.A);
-  } else {
+function getRowsForColor(color: number): RowInfo[] {
+  const rows: RowInfo[] = [];
+  for (let y = 0; y < image.height; y++) {
+    let firstX = -1;
+    let lastX = -1;
+    for (let x = 0; x < image.width; x++) {
+      if (colorGrid[y][x] === color) {
+        if (firstX === -1) firstX = x;
+        lastX = x;
+      }
+    }
+    if (firstX !== -1) rows.push({ y, firstX, lastX });
+  }
+  return rows;
+}
+
+const insns: number[] = [];
+
+// emit direction presses with release frames between
+function moveCursor(button: number, count: number) {
+  for (let i = 0; i < count; i++) {
+    insns.push(button);
     insns.push(BUTTONS.NOOP);
   }
 }
 
-function sectionIsEmpty(y: number, startX: number, endX: number, color?: number) {
-  for (let x = startX; x <= endX; x++) {
-    if (isDrawingPixel(x, y, color)) return false;
+function navigateTo(
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+) {
+  let dx = toX - fromX;
+  let dy = toY - fromY;
+
+  // diagonal movement first
+  const diagSteps = Math.min(Math.abs(dx), Math.abs(dy));
+  if (diagSteps > 0) {
+    const hBit = dx > 0 ? BUTTONS.RIGHT : BUTTONS.LEFT;
+    const vBit = dy > 0 ? BUTTONS.DOWN : BUTTONS.UP;
+    moveCursor(hBit | vBit, diagSteps);
+    dx += dx > 0 ? -diagSteps : diagSteps;
+    dy += dy > 0 ? -diagSteps : diagSteps;
   }
 
-  return true;
+  if (dx !== 0) moveCursor(dx > 0 ? BUTTONS.RIGHT : BUTTONS.LEFT, Math.abs(dx));
+  if (dy !== 0) moveCursor(dy > 0 ? BUTTONS.DOWN : BUTTONS.UP, Math.abs(dy));
 }
 
-function canSkipRow() {
-  const startX = right ? x : 0;
-  const endX = right ? (image.width - 1) : x;
-  if (!sectionIsEmpty(y, startX, endX)) return false;
+// === SETUP ===
+// idle frames so Switch recognizes controller
+delay(insns, 80);
 
-  const endY = down ? (image.height - 1) : 0;
-  if (y === endY) {
-    if (currentColorIdx !== (colors.length - 1)) {
-      const nextColor = colors[currentColorIdx + 1];
-      if (!sectionIsEmpty(y, startX, endX, nextColor)) return false;
-    }
-  } else {
-    const nextY = down ? (y + 1) : (y - 1);
-    if (!sectionIsEmpty(nextY, startX, endX)) return false;
-  }
+// dismiss controller connect screen
+insns.push(BUTTONS.A);
+delay(insns, 60);
+insns.push(BUTTONS.A);
+delay(insns, 60);
+insns.push(BUTTONS.A);
+delay(insns, 60);
 
-  return true;
-}
+// wait for editor to be ready
+delay(insns, 160);
 
-function canSkipLayer(color?: number) {
-  if (down) {
-    for (let i = y; i < image.height; i++) {
-      if (!sectionIsEmpty(i, 0, image.width - 1, color)) return false;
-    }
-  } else {
-    for (let i = y; i >= 0; i--) {
-      if (!sectionIsEmpty(i, 0, image.width - 1, color)) return false;
-    }
-  }
+// set brush to 1px: X, X, LEFT, LEFT, A
+insns.push(BUTTONS.X);
+delay(insns, 30);
+insns.push(BUTTONS.X);
+delay(insns, 30);
+insns.push(BUTTONS.LEFT);
+delay(insns, 10);
+insns.push(BUTTONS.LEFT);
+delay(insns, 10);
+insns.push(BUTTONS.A);
+delay(insns, 30);
 
-  return true;
-}
+// B to return to canvas (cursor returns to center)
+insns.push(BUTTONS.B);
+delay(insns, 60);
 
-function canSkipImage() {
-  if (!canSkipLayer()) return false;
+// navigate from center to (0, 0) - exact distance, no overshoot
+const halfW = Math.ceil(image.width / 2) + 1;
+const halfH = Math.ceil(image.height / 2) + 1;
+const diagSteps = Math.min(halfW, halfH);
+moveCursor(BUTTONS.UP | BUTTONS.LEFT, diagSteps);
+if (halfW > diagSteps) moveCursor(BUTTONS.LEFT, halfW - diagSteps);
+if (halfH > diagSteps) moveCursor(BUTTONS.UP, halfH - diagSteps);
 
-  if (currentColorIdx !== (colors.length - 1)) {
-    const nextColor = colors[currentColorIdx + 1];
-    if (!canSkipLayer(nextColor)) return false;
-  }
+let cursorX = 0;
+let cursorY = 0;
 
-  return true;
-}
-
-function handleRow() {
-  if (right) {
-    while (true) {
-      if (canSkipRow()) {
-        insns.push(BUTTONS.NOOP);
-        break;
-      }
-      handlePixel(x, y);
-
-      if (x !== (image.width - 1)) {
-        insns.push(BUTTONS.RIGHT);
-        x++;
-      } else {
-        break;
-      }
-    }
-  } else {
-    while (true) {
-      if (canSkipRow()) {
-        insns.push(BUTTONS.NOOP);
-        break;
-      }
-      handlePixel(x, y);
-
-      if (x !== 0) {
-        insns.push(BUTTONS.LEFT);
-        x--;
-      } else {
-        break;
-      }
-    }
-  }
-
-  right = !right;
-}
-
-function handleImage() {
-  if (down) {
-    while (true) {
-      if (canSkipImage()) {
-        insns.push(BUTTONS.NOOP);
-        break;
-      }
-      handleRow();
-
-      if (y !== (image.height - 1)) {
-        insns.push(BUTTONS.DOWN);
-        y++;
-      } else {
-        break;
-      }
-    }
-  } else {
-    while (true) {
-      if (canSkipImage()) {
-        insns.push(BUTTONS.NOOP);
-        break;
-      }
-      handleRow();
-
-      if (y !== 0) {
-        insns.push(BUTTONS.UP);
-        y--;
-      } else {
-        break;
-      }
-    }
-  }
-
-  down = !down;
-}
+// === DRAWING ===
+let currentColor = DEFAULT_COLOR;
 
 console.log(`${colors.length} colors`);
 
-for (currentColorIdx = 0; currentColorIdx < colors.length; currentColorIdx++) {
-  const newColor = colors[currentColorIdx];
+for (const newColor of colors) {
+  const rows = getRowsForColor(newColor);
+  if (rows.length === 0) continue;
+
+  // process rows nearest to cursor first
+  const firstRowDist = Math.abs(cursorY - rows[0].y);
+  const lastRowDist = Math.abs(cursorY - rows[rows.length - 1].y);
+  if (lastRowDist < firstRowDist) rows.reverse();
 
   selectNewColor(insns, currentColor, newColor);
   currentColor = newColor;
 
-  handleImage();
+  for (const row of rows) {
+    // pick direction that minimizes navigation
+    const distToFirst = Math.abs(cursorX - row.firstX);
+    const distToLast = Math.abs(cursorX - row.lastX);
+
+    let startX: number, endX: number;
+    if (distToFirst <= distToLast) {
+      startX = row.firstX;
+      endX = row.lastX;
+    } else {
+      startX = row.lastX;
+      endX = row.firstX;
+    }
+
+    navigateTo(cursorX, cursorY, startX, row.y);
+
+    // draw from startX to endX
+    const goingRight = startX <= endX;
+    const step = goingRight ? 1 : -1;
+    const dirButton = goingRight ? BUTTONS.RIGHT : BUTTONS.LEFT;
+    let x = startX;
+    while (true) {
+      insns.push(colorGrid[row.y][x] === newColor ? BUTTONS.A : BUTTONS.NOOP);
+      if (x === endX) break;
+      insns.push(dirButton);
+      x += step;
+    }
+
+    cursorX = endX;
+    cursorY = row.y;
+  }
+
   delay(insns, 40);
 }
 
@@ -243,5 +220,5 @@ console.log(`Instructions: ${insnCount}, ETA: ${etaMinutes}:${etaSeconds}`);
 
 await Deno.writeTextFile(
   "./rp2040src/drawing.h",
-  `const uint8_t drawing_instructions[${insns.length}] = {` + insns.map(n => n.toString()).join(", ") + "};"
+  `const uint8_t drawing_instructions[${insns.length}] = {` + insns.map((n) => n.toString()).join(", ") + "};",
 );

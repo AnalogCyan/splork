@@ -6,7 +6,9 @@ export const BUTTONS = {
   LEFT: 8,
   UP: 16,
   DOWN: 32,
-  WAIT: 128
+  B: 64,
+  WAIT: 128,
+  X: 192,
 } as const;
 
 export function delay(insns: number[], count: number) {
