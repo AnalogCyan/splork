@@ -118,18 +118,10 @@ function navigateTo(
 }
 
 // === SETUP ===
-// idle frames so Switch recognizes controller
+// idle frames so Switch recognizes controller and firmware init runs
 delay(insns, 80);
 
-// dismiss controller connect screen
-insns.push(BUTTONS.A);
-delay(insns, 60);
-insns.push(BUTTONS.A);
-delay(insns, 60);
-insns.push(BUTTONS.A);
-delay(insns, 60);
-
-// wait for editor to be ready
+// wait for editor to be ready after firmware dismisses dialog
 delay(insns, 160);
 
 // set brush to 1px: X, X, LEFT, LEFT, A

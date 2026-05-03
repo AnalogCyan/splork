@@ -63,14 +63,15 @@ static void send_hid_report(uint16_t buttons, uint8_t hat)
     // skip if hid is not ready yet
     if ( !tud_hid_ready() ) return;
 
-    SwitchOutReport out_report =
+    SwitchReport out_report =
     {
         .buttons = buttons,
         .hat = hat,
         .lx = SWITCH_JOYSTICK_MID,
         .ly = SWITCH_JOYSTICK_MID,
         .rx = SWITCH_JOYSTICK_MID,
-        .ry = SWITCH_JOYSTICK_MID
+        .ry = SWITCH_JOYSTICK_MID,
+        .vendor = 0x00
     };
 
     tud_hid_report(0, &out_report, sizeof(out_report));
@@ -86,6 +87,7 @@ void drawing_task(void)
 
     static bool start_drawing = false;
     static uint32_t drawing_instructions_progress = 0;
+    static uint32_t init_phase = 0;
 
     uint16_t buttons = 0;
     uint8_t hat = SWITCH_HAT_NOTHING;
@@ -93,10 +95,31 @@ void drawing_task(void)
     if (!start_drawing) {
         if (board_button_read()) {
             start_drawing = true;
+            init_phase = 0;
         } else {
             send_hid_report(buttons, hat);
             return;
         }
+    }
+
+    // Controller init sequence: wait for HID, then L+R to assign, then A to confirm
+    if (init_phase < 200) {
+        if (!tud_hid_ready()) {
+            send_hid_report(0, SWITCH_HAT_NOTHING);
+            return;
+        }
+        init_phase++;
+
+        if (init_phase >= 40 && init_phase < 60) {
+            buttons = SWITCH_MASK_L | SWITCH_MASK_R;
+        } else if (init_phase >= 120 && init_phase < 140) {
+            buttons = SWITCH_MASK_A;
+        } else if (init_phase >= 160 && init_phase < 180) {
+            buttons = SWITCH_MASK_A;
+        }
+
+        send_hid_report(buttons, hat);
+        return;
     }
 
     uint8_t instruction = drawing_instructions[drawing_instructions_progress];

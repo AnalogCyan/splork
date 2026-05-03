@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Set PICO_BOARD here if you want to target a specific board (e.g. pico2_w for Pico 2W).
+# You can also pass -DPICO_BOARD=pico2_w on the cmake command line.
+# set(PICO_BOARD pico2_w)
+
 include(pico_sdk_import.cmake)
 
 project(splork_project C CXX ASM)
