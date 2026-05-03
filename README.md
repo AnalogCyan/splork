@@ -1,6 +1,6 @@
 # Splork
 
-Tomodachi Life: Living the Dream art drawer/printer for Raspberry Pi Pico (or any other RP2040 board).
+Tomodachi Life: Living the Dream art drawer/printer for Raspberry Pi Pico, Pico 2, Pico 2W, or any other RP2040/RP2350 board.
 
 Fork of [NotNite/splork](https://github.com/NotNite/splork), which forked [aveao/splork](https://github.com/aveao/splork) (the original Splatoon 3 version) to add initial Tomodachi Life support. This fork fully converts the project for Tomodachi Life: Living the Dream, with an 84-color palette, automatic editor setup, and an optimized drawing algorithm.
 
@@ -10,12 +10,21 @@ Fork of [NotNite/splork](https://github.com/NotNite/splork), which forked [aveao
 
 - [Deno](https://deno.land) runtime
 - [Pico SDK](https://github.com/raspberrypi/pico-sdk) + CMake + arm-none-eabi-gcc toolchain
-- A Raspberry Pi Pico (or any RP2040 board)
+- A Raspberry Pi Pico, Pico 2, Pico 2W, or any RP2040/RP2350 board
 
 On macOS:
 ```bash
 brew install cmake
 brew install --cask gcc-arm-embedded
+git clone https://github.com/raspberrypi/pico-sdk.git ~/pico-sdk --recurse-submodules
+```
+
+On Debian/Ubuntu:
+```bash
+sudo apt update
+sudo apt install -y build-essential cmake git python3 \
+    gcc-arm-none-eabi libnewlib-arm-none-eabi \
+    libstdc++-arm-none-eabi-newlib
 git clone https://github.com/raspberrypi/pico-sdk.git ~/pico-sdk --recurse-submodules
 ```
 
@@ -55,12 +64,29 @@ cmake ..
 make
 ```
 
+**For Raspberry Pi Pico 2 / Pico 2W (RP2350):**
+```bash
+cd rp2040src
+mkdir build
+cd build
+export PICO_SDK_PATH=~/pico-sdk
+cmake .. -DPICO_BOARD=pico2_w
+make
+```
+
 On subsequent builds you only need `cd build`, the `export`, and `make`.
+If you are building for a different board, pass the appropriate `-DPICO_BOARD=` value.
+
+> **Pico 2W note:** The onboard LED is connected to the CYW43 wireless chip, so `board_led_write()` has no effect. Don't expect the LED to light up — this is normal.
+
+> **Docker note:** The provided `Dockerfile`/`Dockerfile.ci` build for the default `pico` (RP2040) board. If you're using Docker with a Pico 2/2W, pass `-DPICO_BOARD=pico2_w` or uncomment the `PICO_BOARD` line in `rp2040src/CMakeLists.txt` before building.
 
 ### Flashing
 
 - While holding down `BOOTSEL` on your board, plug it into your computer.
-- Copy `rp2040src/build/splork.uf2` to the newly mounted `RPI-RP2` drive.
+- Copy `rp2040src/build/splork.uf2` to the newly mounted drive:
+  - Original Pico (RP2040): `RPI-RP2`
+  - Pico 2 / Pico 2W (RP2350): `RP2350`
 
 ### Drawing
 

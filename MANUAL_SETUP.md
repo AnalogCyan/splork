@@ -57,7 +57,7 @@ you're recommended to create a 320x120 PNG file using your favorite image editor
 - you're done. proceed to building the rp2040 image using your `drawing.h` file.
     - if you specifically want to draw vertically or horizontally, you can rename `drawing_v.h`/`drawing_h.h` to `drawing.h` and use that instead.
 
-## deploying to rp2040
+## deploying to rp2040 / rp2350
 
 ### installing dependencies
 
@@ -77,12 +77,15 @@ export PICO_SDK_PATH=/your/pico-sdk/path-goes-here
 cmake ..
 make
 ```
+- for Pico 2 / Pico 2W (RP2350), use `cmake .. -DPICO_BOARD=pico2_w` instead of `cmake ..`
 - on subsequent builds you only need to run `cd build`, the `export` command and `make`
 
 ### flashing rp2040
 
 - while holding down `BOOTSEL` button on your board, plug it onto your computer.
-- copy `splork.uf2` from `rp2040src/build/` to the newly mounted `RPI-RP2` drive.
+- copy `splork.uf2` from `rp2040src/build/` to the newly mounted drive:
+  - original Pico (RP2040): `RPI-RP2`
+  - Pico 2 / Pico 2W (RP2350): `RP2350`
 
 ### drawing
 
