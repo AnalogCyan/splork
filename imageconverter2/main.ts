@@ -208,7 +208,9 @@ const pollingRate = 25 / 1000;
 const etaTotal = Math.round(insnCount * pollingRate);
 const etaMinutes = Math.floor(etaTotal / 60);
 const etaSeconds = etaTotal % 60;
-console.log(`Instructions: ${insnCount}, ETA: ${etaMinutes}:${etaSeconds}`);
+console.log(
+  `Instructions: ${insnCount}, ETA: ${etaMinutes}:${etaSeconds.toString().padStart(2, "0")} (Pico / Pico 2 / Pico 2W)`,
+);
 
 await Deno.writeTextFile(
   "./rp2040src/drawing.h",
